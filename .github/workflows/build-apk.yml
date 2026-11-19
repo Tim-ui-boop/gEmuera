@@ -135,6 +135,8 @@ jobs:
         shell: pwsh
         run: |
           ./tools/compat-pack/Build-FirstPartyPacks.ps1 -ProjectRoot .
+          echo "--- staged packs ---"
+          Get-ChildItem -Recurse compat_packs -File | Select-Object FullName, Length | Format-Table -AutoSize
 
       - name: Import project and build C# solutions
         run: |
@@ -148,15 +150,23 @@ jobs:
 
       - name: Export debug APK
         run: |
-          set -euo pipefail
+          set -uo pipefail
           mkdir -p build
-          # use_gradle_build=true in export_presets.cfg requires the Android build
-          # template to be installed into the project first. The flag below both
-          # installs it and performs the export in the same invocation, which is
-          # the only supported way to do this from the command line.
-          timeout 3600 "$GODOT_BIN" --headless --path . \
+          # Godot 4.7 mono can segfault while shutting down in headless mode even
+          # when the export itself succeeded, so the exit code is not trusted.
+          # Success is decided by whether the APK actually exists.
+          timeout 3600 "$GODOT_BIN" --headless --path . --verbose \
             --install-android-build-template \
-            --export-debug "Android" "$PWD/build/gemuera.apk"
+            --export-debug "Android" "$PWD/build/gemuera.apk" 2>&1 | tee /tmp/export.log
+          echo "godot exit: $?"
+          echo "--- tail of export log ---"
+          tail -40 /tmp/export.log
+
+          if [ ! -f build/gemuera.apk ]; then
+            echo "::error::No APK was produced. Relevant errors:"
+            grep -iE "error|fail|exception" /tmp/export.log | tail -40 || true
+            exit 1
+          fi
           ls -la build/
 
       - name: Upload APK
