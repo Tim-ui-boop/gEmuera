@@ -138,3 +138,5 @@ FirstWindow.MobileLayoutLogging=レイアウト診断ログ
 FirstWindow.MobileLayoutLoggingHint=横画面/縦画面・システム小窓・スクロール補正の診断ログを記録します（トラブルシュート用、既定はオフ）。
 FirstWindow.MobileLayoutPanel=レイアウト状態パネル
 FirstWindow.MobileLayoutPanelHint=ゲーム画面左上にリアルタイムのレイアウト状態を表示します（トラブルシュート用、既定はオフ）。
+OptionWindow.LockLandscape=横向きに固定
+OptionWindow.LockLandscapeHint=アプリを横向きに固定し、端末の回転に追従させません。オフにすると自由回転に戻ります。

@@ -22,6 +22,7 @@ public partial class OptionWindow : Control
 	CheckButton quickFlipToggle;
 	CheckButton quickFloatingToggle;
 	CheckButton vsyncToggle;
+	CheckButton lockLandscapeToggle;
 	CheckButton mobileLayoutLoggingToggle;
 	CheckButton mobileLayoutPanelToggle;
 	Label mobileLayoutGroupTitle;
@@ -59,6 +60,7 @@ public partial class OptionWindow : Control
 	Label fpsLabel;
 	Label vsyncLabel;
 	Label vsyncHintLabel;
+	Label lockLandscapeLabel;
 	Label langLabel;
 	Button closeBtn;
 
@@ -249,6 +251,23 @@ public partial class OptionWindow : Control
 		displayGroup.AddChild(vsyncHintLabel);
 		// 初始文案与可见性（ApplyLanguageTexts 在 _Ready 末尾还会再刷新一次，幂等）。
 		RefreshVSyncHint();
+
+		// ---- 屏幕方向锁定（仅 Android 显示；默认关闭，保持原有 Sensor 行为）----
+		var lockLandscapeRow = CreateRow(displayGroup, out lockLandscapeLabel);
+		lockLandscapeToggle = new CheckButton();
+		lockLandscapeToggle.ButtonPressed = ScreenOrientationSettings.LockLandscape;
+		lockLandscapeToggle.CustomMinimumSize = new Vector2(120, 44);
+		lockLandscapeToggle.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+		lockLandscapeToggle.TooltipText = MultiLanguage.Get("OptionWindow.LockLandscapeHint",
+			"Keep the app in landscape and stop it from following the phone's rotation. Turn off to allow free rotation again.");
+		lockLandscapeToggle.Toggled += OnLockLandscapeToggled;
+		lockLandscapeRow.AddChild(lockLandscapeToggle);
+		// 桌面端没有屏幕方向概念，隐藏整行。
+		if (OS.GetName() != "Android")
+		{
+			lockLandscapeLabel.Visible = false;
+			lockLandscapeToggle.Visible = false;
+		}
 
 		// ---- 移动端布局诊断（排障用，默认关闭；开关存 user://settings.cfg）----
 		var mobileLayoutGroup = CreateGroup(content, out mobileLayoutGroupTitle);
@@ -537,6 +556,11 @@ public partial class OptionWindow : Control
 			fpsLabel.Text = MultiLanguage.Get("OptionWindow.FrameRate", "Frame Rate");
 		if (vsyncLabel != null)
 			vsyncLabel.Text = MultiLanguage.Get("OptionWindow.VSync", "V-Sync");
+		if (lockLandscapeLabel != null)
+			lockLandscapeLabel.Text = MultiLanguage.Get("OptionWindow.LockLandscape", "Lock Landscape");
+		if (lockLandscapeToggle != null)
+			lockLandscapeToggle.TooltipText = MultiLanguage.Get("OptionWindow.LockLandscapeHint",
+				"Keep the app in landscape and stop it from following the phone's rotation. Turn off to allow free rotation again.");
 		// 提示文案与可见性统一由 RefreshVSyncHint 刷新（语言切换时也走这里）。
 		if (vsyncHintLabel != null)
 			RefreshVSyncHint();
@@ -740,6 +764,12 @@ public partial class OptionWindow : Control
 		VSyncHelper.Enabled = enabled;
 		VSyncHelper.Apply();
 		RefreshVSyncHint();
+	}
+
+	void OnLockLandscapeToggled(bool enabled)
+	{
+		// setter 内部会写 user://settings.cfg 并立即向系统应用方向请求。
+		ScreenOrientationSettings.LockLandscape = enabled;
 	}
 
 	// 提示仅在"请求关闭、但可能被回退"时显示：关闭后（含 Godot Compatibility 渲染器

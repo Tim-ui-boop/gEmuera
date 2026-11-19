@@ -196,9 +196,11 @@ public partial class FirstWindow
 		if (compatPackCandidatePaths.Count == 0)
 		{
 			compatPackEmptyHint = new Label();
-			compatPackEmptyHint.Text = MultiLanguage.Get(
-				"FirstWindow.CompatPackEmpty",
-				$"未找到可勾选的兼容包。将 .dll 放入 {GetPrimaryCompatPackRootHint()} 后重新进入本页即可刷新。");
+			compatPackEmptyHint.Text = string.Format(
+				MultiLanguage.Get(
+					"FirstWindow.CompatPackEmpty",
+					"未找到可勾选的兼容包。将 .dll 放入 {0} 后重新进入本页即可刷新。"),
+				GetPrimaryCompatPackRootHint());
 			compatPackEmptyHint.AutowrapMode = TextServer.AutowrapMode.WordSmart;
 			compatPackEmptyHint.AddThemeFontSizeOverride("font_size", 13);
 			compatPackEmptyHint.AddThemeColorOverride("font_color", GEmueraTheme.TextDim);

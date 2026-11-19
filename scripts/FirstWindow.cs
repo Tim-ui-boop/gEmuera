@@ -166,7 +166,8 @@ public partial class FirstWindow : Control
 		{
 			GetTree().OnRequestPermissionsResult += OnPermissionsResult;
 			androidPermissionCheckPending = true;
-			statusLabel.Text = "正在请求文件权限...\nRequesting file permissions...";
+			statusLabel.Text = MultiLanguage.Get("FirstWindow.RequestingPermissions",
+				"Requesting file permissions...");
 			OS.RequestPermissions();
 			GetTree().CreateTimer(2.5).Timeout += OnPermissionRequestFallbackTimeout;
 		}
@@ -441,7 +442,8 @@ public partial class FirstWindow : Control
 		const string fallback = "res://assets/text/manual.md";
 		if (Godot.FileAccess.FileExists(fallback))
 			return Godot.FileAccess.GetFileAsString(fallback);
-		return "# gEmuera 操作手册\n\n未找到 `assets/text/manual.md`，请检查资源目录。";
+		return MultiLanguage.Get("FirstWindow.ManualMissing",
+			"# gEmuera manual\n\n`assets/text/manual.md` was not found; check the resource directory.");
 	}
 
 	Control CreateFeedbackTab()
@@ -622,11 +624,11 @@ public partial class FirstWindow : Control
 		compatibilityProfileOption.SizeFlagsHorizontal = SizeFlags.ExpandFill;
 		compatibilityProfileOption.AddThemeFontSizeOverride("font_size", 15);
 		compatibilityProfileOption.AddItem(CoreProfileV24Pure);
-		compatibilityProfileOption.AddItem(CoreProfileSnake + "（兼容包）");
-		compatibilityProfileOption.AddItem(CoreProfileEraFl + "（兼容包）");
-		compatibilityProfileOption.AddItem(CoreProfileV18 + "（兼容包）");
-		compatibilityProfileOption.AddItem(CoreProfileEraBlue + "（兼容包）");
-		compatibilityProfileOption.AddItem(CoreProfileMegaten + "（兼容包）");
+		compatibilityProfileOption.AddItem(CoreProfileSnake + MultiLanguage.Get("FirstWindow.CompatPackSuffix", " (compat pack)"));
+		compatibilityProfileOption.AddItem(CoreProfileEraFl + MultiLanguage.Get("FirstWindow.CompatPackSuffix", " (compat pack)"));
+		compatibilityProfileOption.AddItem(CoreProfileV18 + MultiLanguage.Get("FirstWindow.CompatPackSuffix", " (compat pack)"));
+		compatibilityProfileOption.AddItem(CoreProfileEraBlue + MultiLanguage.Get("FirstWindow.CompatPackSuffix", " (compat pack)"));
+		compatibilityProfileOption.AddItem(CoreProfileMegaten + MultiLanguage.Get("FirstWindow.CompatPackSuffix", " (compat pack)"));
 		compatibilityProfileOption.Select(GetManualProfileOptionIndex());
 		compatibilityProfileOption.ItemSelected += OnManualProfileSelected;
 		compatibilityProfileOption.Visible = AdvancedCompatibilityEnabled;
@@ -777,7 +779,8 @@ public partial class FirstWindow : Control
 		if (map == null)
 		{
 			if (IsRetiredLauncherProfile(launcherProfileId))
-				warning = "；未找到兼容包映射（pack-profile-map.json 缺失/损坏）：本次将以 v24 基线启动。";
+				warning = MultiLanguage.Get("FirstWindow.CompatPackMapMissing",
+					"; compatibility pack mapping not found (pack-profile-map.json missing or corrupt): starting this session on the v24 baseline.");
 			return false;
 		}
 		if (!map.TryGetEntry(launcherProfileId, out CompatPackProfileMapEntry entry))
@@ -789,8 +792,10 @@ public partial class FirstWindow : Control
 			packPath = absolutePath;
 			return true;
 		}
-		warning = "；未找到 " + entry.ProfileId + " 兼容包：" + absolutePath
-			+ "。本次将以 v24 基线启动；请把 " + entry.PackId + ".dll 放到安装根的一包一目录后重试。";
+		warning = string.Format(
+			MultiLanguage.Get("FirstWindow.CompatPackMissing",
+				"; compatibility pack not found for {0}: {1}. Starting this session on the v24 baseline; put {2}.dll into its own folder under the install root and try again."),
+			entry.ProfileId, absolutePath, entry.PackId);
 		return false;
 	}
 
@@ -973,8 +978,8 @@ public partial class FirstWindow : Control
 			// OS.RequestPermissions() 不会弹出授权对话框，必须由用户到系统设置页
 			// 手动开启。开启后返回应用会经 _Notification(ApplicationResumed) 自动
 			// 重新扫描，所以这里给出具体操作路径而不是只写"系统设置"。
-			statusLabel.Text = "需要\"所有文件访问\"权限：设置 → 应用 → gEmuera → 权限 → 所有文件访问。开启后返回本应用（将自动重新扫描游戏）。\n"
-				+ "\"All files access\" required: Settings → Apps → gEmuera → Permissions → All files access, then return (auto re-scan).";
+			statusLabel.Text = MultiLanguage.Get("FirstWindow.NeedAllFilesAccess",
+				"\"All files access\" required: Settings → Apps → gEmuera → Permissions → All files access, then return to this app (games are re-scanned automatically).");
 			// Still try to scan — user:// and app-specific dirs don't need this permission
 		}
 		androidPermissionCheckPending = !canAccess;
@@ -1036,7 +1041,8 @@ public partial class FirstWindow : Control
 					: statusLabel.Text + "\n" + routeErrors;
 			}
 			if (string.IsNullOrEmpty(statusLabel.Text))
-				statusLabel.Text = "请将 era 游戏文件夹放入以下路径:\n" + string.Join("\n", roots);
+				statusLabel.Text = MultiLanguage.Get("FirstWindow.PutGamesHere",
+					"Put your era game folders here:\n") + string.Join("\n", roots);
 		}
 		else if (scanMessages.Count > 0)
 		{
@@ -1161,7 +1167,9 @@ public partial class FirstWindow : Control
 		{
 			if (entries.Count >= MaxLauncherGameEntries)
 			{
-				AddScanMessage(scanMessages, $"游戏条目超过 {MaxLauncherGameEntries} 个，已停止继续扫描。");
+				AddScanMessage(scanMessages, string.Format(
+					MultiLanguage.Get("FirstWindow.TooManyGames",
+						"More than {0} game entries; stopped scanning further."), MaxLauncherGameEntries));
 				break;
 			}
 
@@ -1221,7 +1229,9 @@ public partial class FirstWindow : Control
 		{
 			if (entries.Count >= MaxLauncherGameEntries)
 			{
-				AddScanMessage(scanMessages, $"游戏条目超过 {MaxLauncherGameEntries} 个，已停止继续扫描。");
+				AddScanMessage(scanMessages, string.Format(
+					MultiLanguage.Get("FirstWindow.TooManyGames",
+						"More than {0} game entries; stopped scanning further."), MaxLauncherGameEntries));
 				return;
 			}
 
@@ -1276,7 +1286,9 @@ public partial class FirstWindow : Control
 			{
 				if (entries.Count >= MaxLauncherGameEntries)
 				{
-					AddScanMessage(scanMessages, $"游戏条目超过 {MaxLauncherGameEntries} 个，已停止继续扫描。");
+					AddScanMessage(scanMessages, string.Format(
+					MultiLanguage.Get("FirstWindow.TooManyGames",
+						"More than {0} game entries; stopped scanning further."), MaxLauncherGameEntries));
 					return;
 				}
 
@@ -1385,7 +1397,9 @@ public partial class FirstWindow : Control
 
 		if (entries.Count >= MaxLauncherGameEntries)
 		{
-			AddScanMessage(scanMessages, $"游戏条目超过 {MaxLauncherGameEntries} 个，已停止继续扫描。");
+			AddScanMessage(scanMessages, string.Format(
+					MultiLanguage.Get("FirstWindow.TooManyGames",
+						"More than {0} game entries; stopped scanning further."), MaxLauncherGameEntries));
 			return;
 		}
 
@@ -1560,7 +1574,10 @@ public partial class FirstWindow : Control
 		int selectedPackCount = GetSelectedCompatPackCount();
 		if (selectedPackCount > 0 && !string.Equals(effectiveProfile, CoreProfileV24Pure, System.StringComparison.Ordinal))
 		{
-			packWarning = $"；已选 {selectedPackCount} 项兼容包，但包要求 v24pure 基线——本次组合将被拒载并回退 {effectiveProfile}。";
+			packWarning = string.Format(
+				MultiLanguage.Get("FirstWindow.CompatPackNeedsV24",
+					"; {0} compatibility pack(s) selected, but a pack requires the v24pure baseline — this combination will be rejected and fall back to {1}."),
+				selectedPackCount, effectiveProfile);
 		}
 		// 外部 GEMUERA_COMPAT_PACKS 与按游戏选择并存时的合并结果提示（E2-R3）：
 		// 注入链以按游戏选择为准，外部变量只作诊断输入——UI 在报告兼容包状态的既有
@@ -1571,12 +1588,19 @@ public partial class FirstWindow : Control
 				entry.GameRoot,
 				out _))
 		{
-			packWarning += "；检测到外部 GEMUERA_COMPAT_PACKS 环境变量与按游戏保存的兼容包选择并存：本次启动以按游戏选择为准，外部变量仅作诊断输入。";
+			packWarning += MultiLanguage.Get("FirstWindow.CompatPackEnvConflict",
+				"; an external GEMUERA_COMPAT_PACKS environment variable is set alongside a per-game compatibility pack selection: this launch uses the per-game selection, and the external variable is treated as diagnostics input only.");
 		}
 		packWarning += compatPackMappingWarning;
 		statusLabel.Text = AdvancedCompatibilityEnabled
-			? $"高级兼容模式：本次启动使用 {effectiveProfile}（目录路由为 {entry.ProfileId}，来源 {routeDescription}）{packWarning}"
-			: $"目录路由：{routeDescription} → {effectiveProfile}{packWarning}";
+			? string.Format(
+				MultiLanguage.Get("FirstWindow.StatusAdvancedMode",
+					"Advanced compatibility mode: this launch uses {0} (folder routing is {1}, source {2}){3}"),
+				effectiveProfile, entry.ProfileId, routeDescription, packWarning)
+			: string.Format(
+				MultiLanguage.Get("FirstWindow.StatusRoute",
+					"Folder routing: {0} → {1}{2}"),
+				routeDescription, effectiveProfile, packWarning);
 	}
 
 	static void SetSelectedGamePath(string path, string coreProfileName = CoreProfileV24Pure)

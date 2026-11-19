@@ -137,3 +137,5 @@ FirstWindow.MobileLayoutLogging=布局诊断日志
 FirstWindow.MobileLayoutLoggingHint=记录横竖屏/系统小窗/滚动对账的诊断日志（排障用，默认关闭）。
 FirstWindow.MobileLayoutPanel=布局状态面板
 FirstWindow.MobileLayoutPanelHint=在游戏画面左上角显示实时布局状态（排障用，默认关闭）。
+OptionWindow.LockLandscape=锁定横屏
+OptionWindow.LockLandscapeHint=保持横屏，不再跟随手机重力旋转。关闭后恢复自由旋转。

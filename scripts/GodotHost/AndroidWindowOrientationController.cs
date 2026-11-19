@@ -30,6 +30,8 @@ public partial class AndroidWindowOrientationController : Node
 		debounceTimer.Timeout += Evaluate;
 		GetWindow().SizeChanged += OnWindowSizeChanged;
 		GetViewport().SizeChanged += OnWindowSizeChanged;
+		// 启动即应用用户的方向锁定（默认关闭，行为与之前一致）。
+		ScreenOrientationSettings.Apply();
 		CallDeferred(nameof(Evaluate));
 	}
 
@@ -40,7 +42,8 @@ public partial class AndroidWindowOrientationController : Node
 		try
 		{
 			// 恢复可旋转，避免控制器生命周期结束时把设备方向锁在横屏。
-			if (lastRequestedLandscape)
+			// 用户显式锁定时不恢复，否则退出场景会把锁定设置冲掉。
+			if (lastRequestedLandscape && !ScreenOrientationSettings.LockLandscape)
 				DisplayServer.ScreenSetOrientation(DisplayServer.ScreenOrientation.Sensor);
 		}
 		catch (Exception ex)
@@ -58,6 +61,9 @@ public partial class AndroidWindowOrientationController : Node
 	void Evaluate()
 	{
 		if (OS.GetName() != "Android")
+			return;
+		// 用户锁定了横屏：完全跳过小窗自动切向逻辑，避免覆盖用户的显式选择。
+		if (ScreenOrientationSettings.LockLandscape)
 			return;
 		if (!TryQueryMultiWindow(out bool isMultiWindow))
 		{

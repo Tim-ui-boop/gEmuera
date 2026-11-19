@@ -163,3 +163,5 @@ FirstWindow.MobileLayoutLogging=Layout Diagnostics Log
 FirstWindow.MobileLayoutLoggingHint=Logs rotation, system small-window, and scroll reconciliation diagnostics (troubleshooting only, off by default).
 FirstWindow.MobileLayoutPanel=Layout State Panel
 FirstWindow.MobileLayoutPanelHint=Shows live layout state in the top-left corner (troubleshooting only, off by default).
+OptionWindow.LockLandscape=Lock Landscape
+OptionWindow.LockLandscapeHint=Keep the app in landscape and stop it from following the phone's rotation. Turn off to allow free rotation again.
