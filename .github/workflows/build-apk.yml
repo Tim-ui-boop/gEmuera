@@ -131,6 +131,17 @@ jobs:
             > "$CFG_FILE"
           cat "$CFG_FILE"
 
+      - name: Provide powershell shim (project MSBuild targets call powershell.exe)
+        run: |
+          set -euo pipefail
+          # gemuera-c#.csproj shells out to "powershell ..." to extract
+          # libe_sqlite3.so from a NuGet .aar during publish. On Ubuntu only
+          # pwsh exists, so the target fails with exit code 127.
+          if [ ! -x /usr/local/bin/powershell ]; then
+            sudo ln -sf "$(command -v pwsh)" /usr/local/bin/powershell
+          fi
+          /usr/local/bin/powershell -NoProfile -Command '"shim OK: " + $PSVersionTable.PSVersion.ToString()'
+
       - name: Build first-party compat packs (required before export)
         shell: pwsh
         run: |
