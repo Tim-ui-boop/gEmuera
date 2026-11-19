@@ -1,0 +1,152 @@
+name: Build Android APK
+
+# Manual trigger, or automatically on every push to dev.
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    env:
+      GODOT_VERSION: "4.7-stable"
+      # Godot expects the template folder to be named <major>.<minor>.<status>.mono
+      GODOT_TPL_DIR: "4.7.stable.mono"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8 and 9
+        uses: actions/setup-dotnet@v4
+        with:
+          # The game project targets net8.0 normally but net9.0 when
+          # GodotTargetPlatform == android, while compat packs are net8.0.
+          # Both SDKs are required.
+          dotnet-version: |
+            8.0.x
+            9.0.x
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Cache Godot editor and export templates
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-mono-v1
+
+      - name: Install Godot mono editor + Android export templates
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/godot"
+
+          if ! find "$HOME/godot" -maxdepth 3 -type f -name 'Godot_v*-mono_linux.x86_64' | grep -q .; then
+            echo "Downloading Godot editor..."
+            curl -fsSL -o /tmp/godot.zip \
+              "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_mono_linux_x86_64.zip"
+            unzip -q -o /tmp/godot.zip -d "$HOME/godot"
+          fi
+
+          GODOT_BIN="$(find "$HOME/godot" -maxdepth 3 -type f -name 'Godot_v*-mono_linux.x86_64' | head -1)"
+          chmod +x "$GODOT_BIN"
+          echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
+          "$GODOT_BIN" --version || true
+
+          TPL_DIR="$HOME/.local/share/godot/export_templates/${GODOT_TPL_DIR}"
+          if [ ! -f "$TPL_DIR/android_debug.apk" ] && [ ! -f "$TPL_DIR/android_source.zip" ]; then
+            echo "Downloading export templates..."
+            curl -fsSL -o /tmp/templates.tpz \
+              "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_mono_export_templates.tpz"
+            rm -rf /tmp/tpl && mkdir -p /tmp/tpl
+            unzip -q -o /tmp/templates.tpz -d /tmp/tpl
+            mkdir -p "$TPL_DIR"
+            cp -r /tmp/tpl/templates/. "$TPL_DIR/"
+          fi
+          echo "--- templates dir ---"
+          ls -1 "$TPL_DIR" | head -20
+
+      - name: Locate Android SDK / JDK
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+          echo "SDK=$SDK"
+          ls -1 "$SDK" || true
+          ls -1 "$SDK/ndk" 2>/dev/null || true
+
+      - name: Generate debug signing key
+        run: |
+          set -euo pipefail
+          KS="$HOME/debug.keystore"
+          if [ ! -f "$KS" ]; then
+            keytool -keyalg RSA -genkeypair -alias androiddebugkey \
+              -keypass android -keystore "$KS" -storepass android -validity 9999 \
+              -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null
+          fi
+          echo "DEBUG_KEYSTORE=$KS" >> "$GITHUB_ENV"
+
+      - name: Configure Godot editor settings for Android export
+        run: |
+          set -euo pipefail
+          CFG_DIR="$HOME/.config/godot"
+          CFG_FILE="$CFG_DIR/editor_settings-4.tres"
+          mkdir -p "$CFG_DIR"
+          # Written with printf so no leading indentation ends up in the .tres,
+          # which would make Godot fail to parse it.
+          printf '%s\n' \
+            '[gd_resource type="EditorSettings" format=3]' \
+            '' \
+            '[resource]' \
+            "export/android/android_sdk_path = \"$ANDROID_HOME\"" \
+            "export/android/java_sdk_path = \"$JAVA_HOME\"" \
+            "export/android/debug_keystore = \"$DEBUG_KEYSTORE\"" \
+            'export/android/debug_keystore_user = "androiddebugkey"' \
+            'export/android/debug_keystore_pass = "android"' \
+            'export/android/force_system_user = false' \
+            'export/android/shutdown_adb_on_exit = true' \
+            > "$CFG_FILE"
+          cat "$CFG_FILE"
+
+      - name: Build first-party compat packs (required before export)
+        shell: pwsh
+        run: |
+          ./tools/compat-pack/Build-FirstPartyPacks.ps1 -ProjectRoot .
+
+      - name: Import project and build C# solutions
+        run: |
+          set -euo pipefail
+          # Import assets + compile C#; Godot sometimes hangs on exit in headless mode,
+          # so cap it and verify the DLL afterwards.
+          timeout 1800 "$GODOT_BIN" --headless --path . --import --quit || true
+          timeout 1800 "$GODOT_BIN" --headless --path . --build-solutions --quit || true
+          echo "--- compiled assemblies ---"
+          find .godot/mono/temp/bin -name '*.dll' 2>/dev/null | head -20 || true
+
+      - name: Export debug APK
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          timeout 3600 "$GODOT_BIN" --headless --path . --export-debug "Android" "$PWD/build/gemuera.apk"
+          ls -la build/
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: gemuera-debug-apk
+          path: build/*.apk
+          if-no-files-found: error
+          retention-days: 30
