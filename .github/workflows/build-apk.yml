@@ -180,22 +180,28 @@ jobs:
         run: |
           set -uo pipefail
           mkdir -p build
-          # Godot 4.7 mono can segfault while shutting down in headless mode even
-          # when the export itself succeeded, so the exit code is not trusted.
-          # Success is decided by whether the APK actually exists.
-          timeout 3600 "$GODOT_BIN" --headless --path . --verbose \
+          # Godot 4.7 mono reliably segfaults while shutting down in headless mode
+          # *after* the export reports DONE (malloc(): invalid size in the mono
+          # finalizer). Its exit code therefore carries no information, so it is
+          # captured and ignored; success is decided by the APK existing.
+          rc=0
+          timeout 3600 "$GODOT_BIN" --headless --path . \
             --install-android-build-template \
-            --export-debug "Android" "$PWD/build/gemuera.apk" 2>&1 | tee /tmp/export.log
-          echo "godot exit: $?"
-          echo "--- tail of export log ---"
-          tail -40 /tmp/export.log
+            --export-debug "Android" "$PWD/build/gemuera.apk" \
+            > /tmp/export.log 2>&1 || rc=$?
+          echo "godot exit code: $rc (139 = shutdown segfault, expected)"
+          echo "--- last 25 log lines ---"
+          tail -25 /tmp/export.log
+
+          echo "--- build directory ---"
+          ls -la build/ || true
 
           if [ ! -f build/gemuera.apk ]; then
-            echo "::error::No APK was produced. Relevant errors:"
+            echo "::error::No APK was produced."
             grep -iE "error|fail|exception" /tmp/export.log | tail -40 || true
             exit 1
           fi
-          ls -la build/
+          echo "APK produced: $(du -h build/gemuera.apk | cut -f1)"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
