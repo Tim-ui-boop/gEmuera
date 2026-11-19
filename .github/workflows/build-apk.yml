@@ -1,6 +1,5 @@
 name: Build Android APK
 
-# Manual trigger, or automatically on every push to dev.
 on:
   workflow_dispatch:
   push:
@@ -16,19 +15,20 @@ jobs:
 
     env:
       GODOT_VERSION: "4.7-stable"
-      # Godot expects the template folder to be named <major>.<minor>.<status>.mono
       GODOT_TPL_DIR: "4.7.stable.mono"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Full history: the versionCode is derived from the commit count so that
+          # every build is newer than the last one and Android accepts it as an
+          # update.
+          fetch-depth: 0
 
       - name: Set up .NET 8 and 9
         uses: actions/setup-dotnet@v4
         with:
-          # The game project targets net8.0 normally but net9.0 when
-          # GodotTargetPlatform == android, while compat packs are net8.0.
-          # Both SDKs are required.
           dotnet-version: |
             8.0.x
             9.0.x
@@ -38,6 +38,68 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+
+      - name: Stamp versionCode from commit count
+        run: |
+          set -euo pipefail
+          COUNT=$(git rev-list --count HEAD)
+          # Base 1400 sits well above the 14 currently in export_presets.cfg, so
+          # this build is always an upgrade over the previously installed APK.
+          CODE=$((1400 + COUNT))
+          echo "versionCode=${CODE} (commit count ${COUNT})"
+          sed -i "s|^version/code=.*|version/code=${CODE}|" export_presets.cfg
+          sed -i "s|^version/name=.*|version/name=\"1.10.0-gemuera.${CODE}\"|" export_presets.cfg
+          grep -E '^version/(code|name)=' export_presets.cfg
+
+      - name: Prepare signing key
+        id: signing
+        env:
+          KEYSTORE_B64: ${{ secrets.GEMUERA_KEYSTORE_BASE64 }}
+          KEYSTORE_PASS: ${{ secrets.GEMUERA_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.GEMUERA_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.GEMUERA_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KS="$RUNNER_TEMP/gemuera.jks"
+          if [ -n "${KEYSTORE_B64:-}" ]; then
+            printf '%s' "$KEYSTORE_B64" | base64 -d > "$KS"
+            PASS="$KEYSTORE_PASS"
+            ALIAS="$KEY_ALIAS"
+            KPASS="${KEY_PASS:-$KEYSTORE_PASS}"
+            echo "::notice::Signing with the permanent key (alias $ALIAS) from repository secrets."
+            echo "generated=false" >> "$GITHUB_OUTPUT"
+          else
+            # Bootstrap run: create the key once and publish it as an artifact so
+            # it can be stored as GEMUERA_KEYSTORE_BASE64. Without that secret
+            # every run would sign with a different key and refuse to install as
+            # an update.
+            echo "::warning::GEMUERA_KEYSTORE_BASE64 is not set. Generating a keystore for this run. Download the gemuera-keystore artifact and store it as GEMUERA_KEYSTORE_BASE64 (plus PASSWORD/ALIAS/PASSWORD secrets) so later builds keep the same signature."
+            ALIAS=gemuera
+            PASS=gemuera-keystore-pass
+            KPASS="$PASS"
+            keytool -genkeypair -keystore "$KS" -alias "$ALIAS" \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$PASS" -keypass "$KPASS" \
+              -dname "CN=gEmuera, OU=Tim-ui-boop, O=gEmuera, C=US"
+            base64 -w0 "$KS" > "$RUNNER_TEMP/keystore.b64"
+            echo "generated=true" >> "$GITHUB_OUTPUT"
+          fi
+          keytool -list -keystore "$KS" -storepass "$PASS" | grep -i "Your keystore contains" || true
+          {
+            echo "KEYSTORE_PATH=$KS"
+            echo "KEYSTORE_STORE_PASS=$PASS"
+            echo "KEYSTORE_ALIAS=$ALIAS"
+            echo "KEYSTORE_KEY_PASS=$KPASS"
+          } >> "$GITHUB_ENV"
+
+      - name: Publish keystore (first run only)
+        if: steps.signing.outputs.generated == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: gemuera-keystore
+          path: ${{ runner.temp }}/keystore.b64
+          if-no-files-found: error
+          retention-days: 90
 
       - name: Cache Godot editor and export templates
         uses: actions/cache@v4
@@ -52,8 +114,8 @@ jobs:
           set -euo pipefail
           mkdir -p "$HOME/godot"
 
-          # Note: the archive is named ..._mono_linux_x86_64.zip but the binary
-          # inside is ..._mono_linux.x86_64 (underscore before mono, not a dash).
+          # The archive is named ..._mono_linux_x86_64.zip but the binary inside
+          # is ..._mono_linux.x86_64 (underscore before mono, not a dash).
           GODOT_BIN="$(find "$HOME/godot" -type f -name 'Godot_v*' ! -name '*.zip' | head -1)"
           if [ -z "$GODOT_BIN" ]; then
             echo "Downloading Godot editor..."
@@ -62,9 +124,6 @@ jobs:
             unzip -q -o /tmp/godot.zip -d "$HOME/godot"
             GODOT_BIN="$(find "$HOME/godot" -type f -name 'Godot_v*' ! -name '*.zip' | head -1)"
           fi
-
-          echo "--- extracted tree ---"
-          find "$HOME/godot" -maxdepth 2 | head -20
 
           if [ -z "$GODOT_BIN" ]; then
             echo "ERROR: Godot binary not found after extraction."
@@ -84,8 +143,7 @@ jobs:
             mkdir -p "$TPL_DIR"
             cp -r /tmp/tpl/templates/. "$TPL_DIR/"
           fi
-          echo "--- templates dir ---"
-          ls -1 "$TPL_DIR" | head -20
+          ls -1 "$TPL_DIR" | head -10
 
       - name: Locate Android SDK / JDK
         run: |
@@ -95,19 +153,6 @@ jobs:
           echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
           echo "JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
           echo "SDK=$SDK"
-          ls -1 "$SDK" || true
-          ls -1 "$SDK/ndk" 2>/dev/null || true
-
-      - name: Generate debug signing key
-        run: |
-          set -euo pipefail
-          KS="$HOME/debug.keystore"
-          if [ ! -f "$KS" ]; then
-            keytool -keyalg RSA -genkeypair -alias androiddebugkey \
-              -keypass android -keystore "$KS" -storepass android -validity 9999 \
-              -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null
-          fi
-          echo "DEBUG_KEYSTORE=$KS" >> "$GITHUB_ENV"
 
       - name: Configure Godot editor settings for Android export
         run: |
@@ -117,15 +162,17 @@ jobs:
           mkdir -p "$CFG_DIR"
           # Written with printf so no leading indentation ends up in the .tres,
           # which would make Godot fail to parse it.
+          # The debug keystore slot is pointed at the permanent key, so every
+          # build carries the same signature and installs as an update.
           printf '%s\n' \
             '[gd_resource type="EditorSettings" format=3]' \
             '' \
             '[resource]' \
             "export/android/android_sdk_path = \"$ANDROID_HOME\"" \
             "export/android/java_sdk_path = \"$JAVA_HOME\"" \
-            "export/android/debug_keystore = \"$DEBUG_KEYSTORE\"" \
-            'export/android/debug_keystore_user = "androiddebugkey"' \
-            'export/android/debug_keystore_pass = "android"' \
+            "export/android/debug_keystore = \"$KEYSTORE_PATH\"" \
+            "export/android/debug_keystore_user = \"$KEYSTORE_ALIAS\"" \
+            "export/android/debug_keystore_pass = \"$KEYSTORE_KEY_PASS\"" \
             'export/android/force_system_user = false' \
             'export/android/shutdown_adb_on_exit = true' \
             > "$CFG_FILE"
@@ -145,18 +192,14 @@ jobs:
         shell: pwsh
         run: |
           ./tools/compat-pack/Build-FirstPartyPacks.ps1 -ProjectRoot .
-          echo "--- staged packs ---"
-          Get-ChildItem -Recurse compat_packs -File | Select-Object FullName, Length | Format-Table -AutoSize
+          Get-ChildItem -Recurse compat_packs -File | Select-Object Name, Length | Format-Table -AutoSize
 
       - name: Import project and build C# solutions
         run: |
           set -euo pipefail
-          # Import assets + compile C#; Godot sometimes hangs on exit in headless mode,
-          # so cap it and verify the DLL afterwards.
           timeout 1800 "$GODOT_BIN" --headless --path . --import --quit || true
           timeout 1800 "$GODOT_BIN" --headless --path . --build-solutions --quit || true
-          echo "--- compiled assemblies ---"
-          find .godot/mono/temp/bin -name '*.dll' 2>/dev/null | head -20 || true
+          find .godot/mono/temp/bin -name '*.dll' 2>/dev/null | head -10 || true
 
       - name: Export debug APK
         run: |
@@ -171,19 +214,25 @@ jobs:
             --install-android-build-template \
             --export-debug "Android" "$PWD/build/gemuera.apk" \
             > /tmp/export.log 2>&1 || rc=$?
-          echo "godot exit code: $rc (139 = shutdown segfault, expected)"
-          echo "--- last 25 log lines ---"
-          tail -25 /tmp/export.log
-
-          echo "--- build directory ---"
-          ls -la build/ || true
+          echo "godot exit code: $rc (non-zero is expected at shutdown)"
+          tail -15 /tmp/export.log
 
           if [ ! -f build/gemuera.apk ]; then
             echo "::error::No APK was produced."
-            grep -iE "error|fail|exception" /tmp/export.log | tail -40 || true
+            grep -iE "error|fail|exception" /tmp/export.log | tail -30 || true
             exit 1
           fi
-          echo "APK produced: $(du -h build/gemuera.apk | cut -f1)"
+          echo "APK: $(du -h build/gemuera.apk | cut -f1)"
+
+      - name: Verify APK signature
+        run: |
+          set -euo pipefail
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort | tail -1)"
+          if [ -n "$APKSIGNER" ]; then
+            "$APKSIGNER" verify --print-certs build/gemuera.apk | head -12
+          else
+            echo "apksigner not found; skipping verification"
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

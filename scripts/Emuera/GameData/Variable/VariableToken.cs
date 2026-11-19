@@ -2013,7 +2013,7 @@ namespace MinorShift.Emuera.GameData.Variable
 					{
 						Int64[] runtimeArray = null;
 						if (Code == VariableCode.LOCAL)
-							runtimeArray = ctx.LocalIntegers;
+							return FallbackArray();
 						else if (Code == VariableCode.ARG)
 							runtimeArray = ctx.ArgIntegers;
 						if (runtimeArray != null)
@@ -2026,7 +2026,7 @@ namespace MinorShift.Emuera.GameData.Variable
 						{
 							Int64[] runtimeArray = null;
 							if (Code == VariableCode.LOCAL)
-								runtimeArray = targetContext.LocalIntegers;
+								return FallbackArray();
 							else if (Code == VariableCode.ARG)
 								runtimeArray = targetContext.ArgIntegers;
 							if (runtimeArray != null)
@@ -2130,7 +2130,7 @@ namespace MinorShift.Emuera.GameData.Variable
 					{
 						double[] runtimeArray = null;
 						if (Code == VariableCode.LOCALF)
-							runtimeArray = ctx.LocalFloats;
+							return FallbackArray();
 						else if (Code == VariableCode.ARGF)
 							runtimeArray = ctx.ArgFloats;
 						if (runtimeArray != null)
@@ -2143,7 +2143,7 @@ namespace MinorShift.Emuera.GameData.Variable
 						{
 							double[] runtimeArray = null;
 							if (Code == VariableCode.LOCALF)
-								runtimeArray = targetContext.LocalFloats;
+								return FallbackArray();
 							else if (Code == VariableCode.ARGF)
 								runtimeArray = targetContext.ArgFloats;
 							if (runtimeArray != null)
@@ -2225,7 +2225,7 @@ namespace MinorShift.Emuera.GameData.Variable
 					{
 						string[] runtimeArray = null;
 						if (Code == VariableCode.LOCALS)
-							runtimeArray = ctx.LocalStrings;
+							return FallbackArray();
 						else if (Code == VariableCode.ARGS)
 							runtimeArray = ctx.ArgStrings;
 						if (runtimeArray != null)
@@ -2238,7 +2238,7 @@ namespace MinorShift.Emuera.GameData.Variable
 						{
 							string[] runtimeArray = null;
 							if (Code == VariableCode.LOCALS)
-								runtimeArray = targetContext.LocalStrings;
+								return FallbackArray();
 							else if (Code == VariableCode.ARGS)
 								runtimeArray = targetContext.ArgStrings;
 							if (runtimeArray != null)
