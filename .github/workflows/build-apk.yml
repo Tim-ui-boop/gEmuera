@@ -158,24 +158,6 @@ jobs:
           echo "--- compiled assemblies ---"
           find .godot/mono/temp/bin -name '*.dll' 2>/dev/null | head -20 || true
 
-      - name: Diagnose .NET publish for android-arm64
-        continue-on-error: true
-        run: |
-          set -uo pipefail
-          echo "=== dotnet --list-sdks ==="
-          dotnet --list-sdks
-          echo "=== dotnet --list-runtimes ==="
-          dotnet --list-runtimes
-          echo "=== workloads ==="
-          dotnet workload list || true
-          echo
-          echo "=== direct publish (same args Godot uses) ==="
-          dotnet publish "gemuera-c#.csproj" \
-            -c ExportDebug -r android-arm64 --self-contained true -v normal \
-            -p:DebugType=None -p:DebugSymbols=false \
-            -p:GodotTargetPlatform=android \
-            -o /tmp/pre-publish 2>&1 | tail -60
-
       - name: Export debug APK
         run: |
           set -uo pipefail
