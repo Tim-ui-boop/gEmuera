@@ -85,3 +85,6 @@ desktop.ini
 
 # 第一方兼容包 staging（tools/compat-pack/Build-FirstPartyPacks.ps1 生成；导出时打进 PCK，不入库）
 /compat_packs/
+
+# local scratch (never commit keys or APKs here)
+/ks/
