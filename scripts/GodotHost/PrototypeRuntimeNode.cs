@@ -157,7 +157,11 @@ public partial class PrototypeRuntimeNode : Node
 			return;
 		if (!result.IsCommitted || result.Session is null)
 		{
+			// Switching to `profile` failed. Restoring the previous projection would leave the
+			// status overlay showing the OLD profile name, which reads as "the profile I picked
+			// is active" even though the engine kept running the previous one. Say so instead.
 			RestoreCurrentSessionProjection();
+			EmitStatus($"Core prototype unavailable | requested {profile} | running {ProfileId}");
 			throw result.Error ?? new InvalidOperationException("Core session was not committed.");
 		}
 

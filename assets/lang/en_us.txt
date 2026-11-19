@@ -174,3 +174,6 @@ FirstWindow.RequestingPermissions=Requesting file permissions...
 FirstWindow.StatusAdvancedMode=Advanced compatibility mode: this launch uses {0} (folder routing is {1}, source {2}){3}
 FirstWindow.StatusRoute=Folder routing: {0} -> {1}{2}
 FirstWindow.TooManyGames=More than {0} game entries; stopped scanning further.
+FirstWindow.CompatPackListTooltip=Checked packs apply to the currently selected game. Check nothing for the plain v24 baseline. A pack that fails to load falls back automatically and is written to the log.
+FirstWindow.AdvancedCompatibilityTooltip=Chooses the engine profile only (v24pure / erafl / snake ...), not which .dll files are used. When on, the dropdown below overrides the profile for this launch; when off, the profile is decided strictly by the game folder routing. This is separate from the compatibility pack list below.
+FirstWindow.CompatibilityProfileTooltip=Base engine profile. It only applies while Advanced compatibility mode is on. It runs on the v24pure baseline with the selected packs layered on top; picking erafl and similar while packs do not match causes this launch to be rejected and fall back.

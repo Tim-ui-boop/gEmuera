@@ -57,8 +57,8 @@ public partial class FirstWindow
 			"FirstWindow.CompatPackSection",
 			"兼容包（勾选启用，按所选游戏保存）");
 		compatPackHeaderLabel.TooltipText = MultiLanguage.Get(
-			"FirstWindow.CompatPackPathsTooltip",
-			"为当前选中的游戏启用兼容包（.dll，需内嵌清单）。留空 = 纯 v24；加载失败自动回退并记录日志。");
+			"FirstWindow.CompatPackListTooltip",
+			"勾选的兼容包会对当前选中的游戏生效。一个都不勾 = 纯 v24 基线；加载失败会自动回退并记录日志。");
 		compatPackHeaderLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
 		compatPackHeaderLabel.AddThemeFontSizeOverride("font_size", 13);
 		compatPackHeaderLabel.AddThemeColorOverride("font_color", GEmueraTheme.TextSecondary);

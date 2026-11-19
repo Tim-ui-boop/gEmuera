@@ -608,7 +608,7 @@ public partial class FirstWindow : Control
 			"高级兼容模式");
 		advancedCompatibilityToggle.TooltipText = MultiLanguage.Get(
 			"FirstWindow.AdvancedCompatibilityTooltip",
-			"开启后可手动覆盖本次启动的兼容 profile；关闭时严格使用游戏目录路由。");
+			"只看引擎 profile（v24pure / erafl / snake …），不看具体是哪些 .dll。开启后可用下方下拉框覆盖本次启动的 profile；关闭时严格按游戏目录路由决定。这与下方\"兼容包\"列表是两件事。");
 		advancedCompatibilityToggle.ButtonPressed = AdvancedCompatibilityEnabled;
 		advancedCompatibilityToggle.CustomMinimumSize = new Vector2(0, 44);
 		advancedCompatibilityToggle.SizeFlagsHorizontal = SizeFlags.ExpandFill;
@@ -619,7 +619,7 @@ public partial class FirstWindow : Control
 		compatibilityProfileOption = new OptionButton();
 		compatibilityProfileOption.TooltipText = MultiLanguage.Get(
 			"FirstWindow.CompatibilityProfileTooltip",
-			"选择后将在下一次启动游戏时生效。");
+			"基础引擎 profile，仅在\"高级兼容模式\"开启时生效。它以 v24pure 为基线，选中的兼容包会叠加在上面；这里选 erafl 等但与包不匹配时，本次启动会被拒载并回退。");
 		compatibilityProfileOption.CustomMinimumSize = new Vector2(180, 44);
 		compatibilityProfileOption.SizeFlagsHorizontal = SizeFlags.ExpandFill;
 		compatibilityProfileOption.AddThemeFontSizeOverride("font_size", 15);
