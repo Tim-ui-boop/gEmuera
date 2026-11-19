@@ -134,13 +134,12 @@ jobs:
       - name: Provide powershell shim (project MSBuild targets call powershell.exe)
         run: |
           set -euo pipefail
-          # gemuera-c#.csproj shells out to "powershell ..." to extract
-          # libe_sqlite3.so from a NuGet .aar during publish. On Ubuntu only
-          # pwsh exists, so the target fails with exit code 127.
-          if [ ! -x /usr/local/bin/powershell ]; then
-            sudo ln -sf "$(command -v pwsh)" /usr/local/bin/powershell
-          fi
-          /usr/local/bin/powershell -NoProfile -Command '"shim OK: " + $PSVersionTable.PSVersion.ToString()'
+          # gemuera-c#.csproj shells out to "powershell ..." during publish, and
+          # pwsh on Linux cannot load the desktop-only System.IO.Compression.FileSystem
+          # assembly that script uses. The shim handles the .aar extraction in
+          # python3 and delegates anything else to pwsh.
+          sudo install -m 0755 tools/ci/powershell-shim.sh /usr/local/bin/powershell
+          /usr/local/bin/powershell -NoProfile -Command '"shim passthrough OK: " + $PSVersionTable.PSVersion.ToString()'
 
       - name: Build first-party compat packs (required before export)
         shell: pwsh
