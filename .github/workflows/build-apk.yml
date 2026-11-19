@@ -150,7 +150,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p build
-          timeout 3600 "$GODOT_BIN" --headless --path . --export-debug "Android" "$PWD/build/gemuera.apk"
+          # use_gradle_build=true in export_presets.cfg requires the Android build
+          # template to be installed into the project first. The flag below both
+          # installs it and performs the export in the same invocation, which is
+          # the only supported way to do this from the command line.
+          timeout 3600 "$GODOT_BIN" --headless --path . \
+            --install-android-build-template \
+            --export-debug "Android" "$PWD/build/gemuera.apk"
           ls -la build/
 
       - name: Upload APK
